@@ -1,0 +1,11 @@
+windows-capture==2.0.1
+mediapipe==1.0.1
+PySide6==6.11.1
+pywin32==312
+requests==2.34.2
+
+# face_pipeline.py imports these directly (cv2, numpy) rather than relying
+# on them as transitive deps of mediapipe -- pinned explicitly so a future
+# mediapipe upgrade that drops/changes them can't silently break this file.
+numpy==2.4.6
+opencv-python==5.0.0.93

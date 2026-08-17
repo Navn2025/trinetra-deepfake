@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Family Circle</title>
+<style>
+  :root {
+    --bg: #202124;
+    --card-bg: #2d2e30;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #4285f4;
+    --good: #34a853;
+    --bad: #d93025;
+    --warn: #b28000;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    max-width: 560px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+  nav a:hover { background: var(--card-bg); color: var(--text); }
+  nav a.active { color: var(--text); background: var(--card-bg); font-weight: 600; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 9px;
+    border-radius: 8px;
+    background: var(--card-bg);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .tab.active { background: var(--accent); color: white; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; margin-top: 12px; }
+  label:first-child { margin-top: 0; }
+  input[type="text"], input[type="password"], input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    background: #1a1b1c;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 14px;
+    margin-right: 8px;
+  }
+  button.secondary { background: #3c4043; }
+  button.good { background: var(--good); }
+  button.bad { background: var(--bad); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status, #joinStatus { font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
+  video { width: 100%; border-radius: 8px; background: black; margin-top: 10px; }
+  .thumbs { display: flex; gap: 8px; margin-top: 10px; }
+  .thumbs img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; }
+  .member-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+  }
+  .member-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px; }
+  .member-status.pending { background: var(--warn); }
+  .member-status.approved { background: var(--good); }
+  .member-status.rejected { background: var(--bad); }
+</style>
+</head>
+<body>
+  <nav>
+    <a href="/analyze-ui">Analyze</a>
+    <a href="/dashboard">History</a>
+    <a href="/contacts-ui">Contacts</a>
+    <a href="/family-ui" class="active">Family Circles</a>
+  </nav>
+  <h1>Family Circle</h1>
+  <div class="subtitle">Enroll trusted family members' face so calls can be checked against who they claim to be, not just whether the video looks AI-generated.</div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="create">Create Family</div>
+    <div class="tab" data-tab="join">Join Family</div>
+    <div class="tab" data-tab="head">Approve Members</div>
+  </div>
+
+  <!-- CREATE -->
+  <div class="panel active" id="panel-create">
+    <div class="card">
+      <h2>Create a Family Circle</h2>
+      <label for="createName">Family name</label>
+      <input type="text" id="createName" placeholder="e.g. The Sharmas" />
+      <label for="createPasscode">Passcode (share this with family members)</label>
+      <input type="password" id="createPasscode" placeholder="a shared secret" />
+      <button id="createBtn">Create</button>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <!-- JOIN -->
+  <div class="panel" id="panel-join">
+    <div class="card">
+      <h2>Join a Family Circle</h2>
+      <label for="joinFamilyId">Family ID</label>
+      <input type="number" id="joinFamilyId" />
+      <label for="joinPasscode">Passcode</label>
+      <input type="password" id="joinPasscode" />
+      <label for="joinName">Your name</label>
+      <input type="text" id="joinName" />
+
+      <label>Face (we'll capture 3 photos, 1 second apart)</label>
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="thumbs" id="thumbs"></div>
+      <button id="startCameraBtn" class="secondary">Start Camera</button>
+      <button id="capturePhotosBtn" disabled>Capture 3 Photos</button>
+
+      <div>
+        <button id="submitJoinBtn" disabled>Submit Join Request</button>
+      </div>
+      <div id="joinStatus"></div>
+    </div>
+  </div>
+
+  <!-- HEAD DASHBOARD -->
+  <div class="panel" id="panel-head">
+    <div class="card">
+      <h2>Approve Members</h2>
+      <label for="headFamilyId">Family ID</label>
+      <input type="number" id="headFamilyId" />
+      <label for="headPasscode">Passcode</label>
+      <input type="password" id="headPasscode" />
+      <button id="loadMembersBtn">Load Members</button>
+      <div id="members" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Tabs ----
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(`panel-${tab.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    // ---- Create family ----
+    document.getElementById("createBtn").addEventListener("click", async () => {
+      const name = document.getElementById("createName").value.trim();
+      const passcode = document.getElementById("createPasscode").value;
+      const statusEl = document.getElementById("status");
+      if (!name || !passcode) {
+        statusEl.textContent = "Enter a family name and passcode.";
+        return;
+      }
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("passcode", passcode);
+      const res = await fetch("/families", { method: "POST", body: formData });
+      const result = await res.json();
+      statusEl.textContent = `Created "${result.name}" -- Family ID: ${result.id}\nShare this ID + your passcode with family members so they can join.`;
+    });
+
+    // ---- Join family: camera + photo capture ----
+    let stream = null;
+    let capturedPhotos = []; // Blobs
+
+    document.getElementById("startCameraBtn").addEventListener("click", async () => {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      document.getElementById("preview").srcObject = stream;
+      document.getElementById("capturePhotosBtn").disabled = false;
+    });
+
+    document.getElementById("capturePhotosBtn").addEventListener("click", async () => {
+      const video = document.getElementById("preview");
+      const thumbs = document.getElementById("thumbs");
+      const btn = document.getElementById("capturePhotosBtn");
+      btn.disabled = true;
+      capturedPhotos = [];
+      thumbs.innerHTML = "";
+
+      for (let i = 0; i < 3; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+        capturedPhotos.push(blob);
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(blob);
+        thumbs.appendChild(img);
+      }
+      btn.disabled = false;
+      checkJoinReady();
+    });
+
+    function checkJoinReady() {
+      document.getElementById("submitJoinBtn").disabled = !(capturedPhotos.length === 3);
+    }
+
+    document.getElementById("submitJoinBtn").addEventListener("click", async () => {
+      const familyId = document.getElementById("joinFamilyId").value;
+      const passcode = document.getElementById("joinPasscode").value;
+      const name = document.getElementById("joinName").value.trim();
+      const statusEl = document.getElementById("joinStatus");
+
+      if (!familyId || !passcode || !name) {
+        statusEl.textContent = "Fill in family ID, passcode, and your name.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("passcode", passcode);
+      capturedPhotos.forEach((blob, i) => formData.append("photos", blob, `photo${i}.jpg`));
+
+      statusEl.textContent = "Submitting...";
+      try {
+        const res = await fetch(`/families/${familyId}/join`, { method: "POST", body: formData });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        const result = await res.json();
+        statusEl.textContent = `Request submitted as "${result.name}" (id ${result.id}). Waiting for the head of family to approve.`;
+      } catch (err) {
+        statusEl.textContent = `Failed: ${err.message}`;
+      }
+    });
+
+    // ---- Head dashboard ----
+    document.getElementById("loadMembersBtn").addEventListener("click", loadMembers);
+
+    async function loadMembers() {
+      const familyId = document.getElementById("headFamilyId").value;
+      const passcode = document.getElementById("headPasscode").value;
+      const membersEl = document.getElementById("members");
+
+      if (!familyId || !passcode) {
+        membersEl.textContent = "Enter family ID and passcode.";
+        return;
+      }
+
+      const res = await fetch(`/families/${familyId}/members?passcode=${encodeURIComponent(passcode)}`);
+      if (!res.ok) {
+        membersEl.textContent = "Wrong family ID or passcode.";
+        return;
+      }
+      const members = await res.json();
+
+      if (members.length === 0) {
+        membersEl.textContent = "No join requests yet.";
+        return;
+      }
+
+      membersEl.innerHTML = members.map((m) => `
+        <div class="member-row">
+          <span>${m.name} <span class="member-status ${m.status}">${m.status}</span></span>
+          ${m.status === "pending" ? `
+            <span>
+              <button class="good" data-approve="${m.id}" style="margin-top:0">Approve</button>
+              <button class="bad" data-reject="${m.id}" style="margin-top:0">Reject</button>
+            </span>
+          ` : ""}
+        </div>
+      `).join("");
+
+      membersEl.querySelectorAll("[data-approve]").forEach((btn) => {
+        btn.addEventListener("click", () => actOnMember(btn.dataset.approve, "approve"));
+      });
+      membersEl.querySelectorAll("[data-reject]").forEach((btn) => {
+        btn.addEventListener("click", () => actOnMember(btn.dataset.reject, "reject"));
+      });
+    }
+
+    async function actOnMember(memberId, action) {
+      const familyId = document.getElementById("headFamilyId").value;
+      const passcode = document.getElementById("headPasscode").value;
+      const formData = new FormData();
+      formData.append("passcode", passcode);
+      await fetch(`/families/${familyId}/members/${memberId}/${action}`, { method: "POST", body: formData });
+      loadMembers();
+    }
+  </script>
+</body>
+</html>

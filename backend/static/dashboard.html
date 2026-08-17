@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Deepfake Detection History</title>
+<style>
+  :root {
+    --bg: #202124;
+    --card-bg: #2d2e30;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --real: #34a853;
+    --fake: #d93025;
+    --uncertain: #b28000;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+  nav a:hover { background: var(--card-bg); color: var(--text); }
+  nav a.active { color: var(--text); background: var(--card-bg); font-weight: 600; }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+  }
+  .card-body {
+    padding: 10px 12px;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    color: white;
+    margin-bottom: 6px;
+  }
+  .badge.real { background: var(--real); }
+  .badge.fake { background: var(--fake); }
+  .badge.uncertain { background: var(--uncertain); }
+  .meta {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .empty {
+    color: var(--muted);
+    padding: 40px 0;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <nav>
+    <a href="/analyze-ui">Analyze</a>
+    <a href="/dashboard" class="active">History</a>
+    <a href="/contacts-ui">Contacts</a>
+    <a href="/family-ui">Family Circles</a>
+  </nav>
+  <h1>Deepfake Detection History</h1>
+  <div class="subtitle">Most recent detections across all connected clients (browser extension + desktop app).</div>
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">No detections logged yet.</div>
+
+  <script>
+    function classify(p) {
+      if (p >= 0.65) return { cls: "fake", label: `⚠ FAKE ${Math.round(p * 100)}%` };
+      if (p <= 0.35) return { cls: "real", label: `✓ REAL ${Math.round((1 - p) * 100)}%` };
+      return { cls: "uncertain", label: `? UNCERTAIN ${Math.round(p * 100)}%` };
+    }
+
+    async function load() {
+      const res = await fetch("/history?limit=100");
+      const items = await res.json();
+
+      const grid = document.getElementById("grid");
+      const empty = document.getElementById("empty");
+
+      if (items.length === 0) {
+        empty.style.display = "block";
+        return;
+      }
+
+      grid.innerHTML = items.map((item) => {
+        const { cls, label } = classify(item.fake_probability);
+        const platform = item.platform || "unknown source";
+
+        let identityLine = "";
+        if (item.identity_contact_name) {
+          const matched = item.identity_similarity >= 0.45;
+          identityLine = `<div class="meta" style="color:${matched ? '#34a853' : '#d93025'}">
+            ${matched ? "✓" : "⚠"} ${matched ? "matches" : "doesn't match"} ${item.identity_contact_name}
+            (${Math.round(item.identity_similarity * 100)}%)
+          </div>`;
+        }
+
+        let scamLine = "";
+        if (item.scam_likelihood !== null && item.scam_likelihood !== undefined) {
+          scamLine = `<div class="meta">Scam likelihood: ${Math.round(item.scam_likelihood * 100)}%</div>`;
+        }
+
+        return `
+          <div class="card">
+            <img src="data:image/jpeg;base64,${item.thumbnail_b64}" alt="face crop" />
+            <div class="card-body">
+              <span class="badge ${cls}">${label}</span>
+              <div class="meta">${platform}</div>
+              <div class="meta">${item.created_at} UTC</div>
+              ${identityLine}
+              ${scamLine}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    load();
+    setInterval(load, 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Enroll Contacts</title>
+<style>
+  :root {
+    --bg: #202124;
+    --card-bg: #2d2e30;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #4285f4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    max-width: 480px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+  nav a:hover { background: var(--card-bg); color: var(--text); }
+  nav a.active { color: var(--text); background: var(--card-bg); font-weight: 600; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 14px;
+    background: #1a1b1c;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { font-size: 13px; margin-top: 10px; }
+  .contact-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+  }
+  .contact-id { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <nav>
+    <a href="/analyze-ui">Analyze</a>
+    <a href="/dashboard">History</a>
+    <a href="/contacts-ui" class="active">Contacts</a>
+    <a href="/family-ui">Family Circles</a>
+  </nav>
+  <h1>Enroll a Contact</h1>
+  <div class="subtitle">Add a reference photo for identity verification during calls. Use the returned ID as the "contact_id" when calling /predict.</div>
+
+  <div class="card">
+    <label for="name">Contact name</label>
+    <input type="text" id="name" placeholder="e.g. Mom" />
+    <label for="photo">Reference photo (clear, single face)</label>
+    <input type="file" id="photo" accept="image/*" />
+    <button id="submit">Enroll</button>
+    <div id="status"></div>
+  </div>
+
+  <h1>Enrolled Contacts</h1>
+  <div class="card"><div id="contacts">Loading…</div></div>
+
+  <script>
+    async function loadContacts() {
+      const res = await fetch("/contacts");
+      const contacts = await res.json();
+      const el = document.getElementById("contacts");
+      if (contacts.length === 0) {
+        el.textContent = "No contacts enrolled yet.";
+        return;
+      }
+      el.innerHTML = contacts.map(c =>
+        `<div class="contact-row"><span>${c.name}</span><span class="contact-id">id: ${c.id}</span></div>`
+      ).join("");
+    }
+
+    document.getElementById("submit").addEventListener("click", async () => {
+      const name = document.getElementById("name").value.trim();
+      const photoInput = document.getElementById("photo");
+      const statusEl = document.getElementById("status");
+
+      if (!name || !photoInput.files[0]) {
+        statusEl.textContent = "Enter a name and choose a photo.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("file", photoInput.files[0]);
+
+      statusEl.textContent = "Enrolling…";
+      try {
+        const res = await fetch("/contacts", { method: "POST", body: formData });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        const result = await res.json();
+        statusEl.textContent = `Enrolled "${result.name}" as contact_id=${result.id}`;
+        document.getElementById("name").value = "";
+        photoInput.value = "";
+        loadContacts();
+      } catch (err) {
+        statusEl.textContent = `Failed: ${err.message}`;
+      }
+    });
+
+    loadContacts();
+  </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+.deepfake-detector-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  z-index: 999999;
+
+  padding: 6px 10px;
+
+  border-radius: 6px;
+
+  background: rgba(0, 0, 0, 0.75);
+
+  color: white;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  pointer-events: none;
+
+  backdrop-filter: blur(4px);
+}
+
+.deepfake-detector-badge[data-type="fake"] {
+  background: rgba(180, 0, 0, 0.9);
+}
+
+.deepfake-detector-badge[data-type="real"] {
+  background: rgba(0, 120, 60, 0.9);
+}
+
+.deepfake-detector-badge[data-type="uncertain"] {
+  background: rgba(150, 100, 0, 0.9);
+}

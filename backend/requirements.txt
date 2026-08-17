@@ -1,0 +1,32 @@
+# Web framework
+fastapi==0.115.0
+uvicorn==0.30.6
+python-multipart==0.0.9
+
+# Image I/O
+pillow==10.4.0
+numpy==2.4.6
+
+# Direct use: preprocessing.py (blur/sharpness quality gate), video_pipeline.py
+# (frame decoding). Already an indirect dependency of insightface, but pinned
+# explicitly here since these modules import cv2 themselves.
+opencv-python==5.0.0.93
+
+# Deepfake visual classifier (predictor.py) -- DeepfakeBench's UCF detector
+# (Xception-based encoder + custom head, see ucf_head.py), loaded via
+# ../DeepfakeBench/training/networks/xception.py.
+# torch must be installed for your CUDA version (or CPU-only) using the
+# matching index, e.g. for CUDA 13.0:
+#   pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
+# Installing "torch==2.13.0" from this file with a plain `pip install -r`
+# will pull whatever default wheel PyPI serves (often CPU-only) -- install
+# torch separately first if you need GPU inference.
+torch==2.13.0
+
+# Face identity embeddings (face_embedding.py) -- InsightFace buffalo_l via
+# onnxruntime, runs on CPU by design (see that file's docstring).
+insightface==1.0.1
+onnxruntime==1.28.0
+
+# Tests (tests/)
+pytest==9.1.1

@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Analyze Media — Deepfake Detector</title>
+<style>
+  :root {
+    --bg: #202124;
+    --card-bg: #2d2e30;
+    --panel-bg: #1a1b1c;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #4285f4;
+    --real: #34a853;
+    --fake: #d93025;
+    --uncertain: #b28000;
+    --border: rgba(255,255,255,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    max-width: 920px;
+    margin-inline: auto;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+  nav a:hover { background: var(--card-bg); color: var(--text); }
+  nav a.active { color: var(--text); background: var(--card-bg); font-weight: 600; }
+
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .tab-btn.active { color: var(--text); border-color: var(--accent); background: #29304a; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 36px 16px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .dropzone.dragover { border-color: var(--accent); background: rgba(66,133,244,0.06); }
+  .dropzone .hint { font-size: 12px; margin-top: 6px; }
+  .dropzone input { display: none; }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 16px;
+    border: 1px solid var(--border);
+  }
+
+  .preview-wrap { position: relative; display: inline-block; max-width: 100%; }
+  .preview-wrap img, .preview-wrap video { max-width: 100%; border-radius: 8px; display: block; }
+  .preview-wrap canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--panel-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-bar > div { height: 100%; background: var(--accent); width: 0%; transition: width .1s; }
+  .status-line { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+  .spinner {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 20px; color: white;
+  }
+  .badge.real { background: var(--real); }
+  .badge.fake { background: var(--fake); }
+  .badge.uncertain { background: var(--uncertain); }
+  .badge.insufficient_quality, .badge.no_face_detected { background: #5f6368; }
+
+  .result-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .meta-grid b { color: var(--text); display: block; font-size: 14px; font-weight: 600; }
+
+  .face-list, .segment-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .face-row, .segment-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel-bg); border-radius: 6px; padding: 8px 10px; font-size: 13px;
+  }
+  .segment-row { cursor: pointer; }
+  .segment-row:hover { outline: 1px solid var(--accent); }
+
+  .frame-strip { display: flex; gap: 2px; margin-top: 14px; height: 34px; }
+  .frame-strip div { flex: 1; border-radius: 2px; cursor: pointer; }
+  .frame-strip div.real { background: var(--real); }
+  .frame-strip div.fake { background: var(--fake); }
+  .frame-strip div.uncertain { background: var(--uncertain); }
+  .frame-strip div.no_face_detected, .frame-strip div.insufficient_quality { background: #3c3f42; }
+
+  .error-box { color: var(--fake); font-size: 13px; margin-top: 10px; }
+  .quality-note { font-size: 12px; color: var(--uncertain); margin-top: 8px; }
+</style>
+</head>
+<body>
+  <nav>
+    <a href="/analyze-ui" class="active">Analyze</a>
+    <a href="/dashboard">History</a>
+    <a href="/contacts-ui">Contacts</a>
+    <a href="/family-ui">Family Circles</a>
+  </nav>
+
+  <h1>Analyze Media</h1>
+  <div class="subtitle">Upload a photo or video for offline deepfake analysis — separate from the real-time call protection, useful for checking media you've already received.</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="image">Image</button>
+    <button class="tab-btn" data-tab="video">Video</button>
+  </div>
+
+  <!-- IMAGE -->
+  <div class="tab-panel active" id="panel-image">
+    <div class="dropzone" id="dropzone-image">
+      <div>Drop an image here, or click to choose a file</div>
+      <div class="hint">JPEG, PNG, or WebP — every face in the photo is analyzed separately</div>
+      <input type="file" id="input-image" accept="image/jpeg,image/png,image/webp" />
+    </div>
+    <div id="result-image"></div>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="tab-panel" id="panel-video">
+    <div class="dropzone" id="dropzone-video">
+      <div>Drop a video here, or click to choose a file</div>
+      <div class="hint">MP4, WebM, MOV, or MKV — frames are sampled evenly across the clip</div>
+      <input type="file" id="input-video" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" />
+    </div>
+    <div id="result-video"></div>
+  </div>
+
+<script>
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
+  });
+});
+
+// ---------- Shared helpers ----------
+function classBadge(classification) {
+  const labels = {
+    real: "✓ REAL",
+    fake: "⚠ FAKE",
+    uncertain: "? UNCERTAIN",
+    insufficient_quality: "— INSUFFICIENT QUALITY",
+    no_face_detected: "— NO FACE DETECTED",
+  };
+  return `<span class="badge ${classification}">${labels[classification] || classification}</span>`;
+}
+
+function confidencePct(p) {
+  // Always the raw fake_probability, regardless of which classification
+  // badge it's shown next to -- "REAL 17%" reads as "17% confident real"
+  // when it actually means "17% fake score, classified real because
+  // that's under REAL_THRESHOLD". Every call site below labels it
+  // explicitly as a fake score to remove that ambiguity.
+  return p === null || p === undefined ? "—" : `${Math.round(p * 100)}% fake score`;
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = (seconds % 60).toFixed(1);
+  return `${m}:${s.padStart(4, "0")}`;
+}
+
+// Uploads via XHR (not fetch) specifically to get real upload-progress
+// events -- fetch's request-body streaming progress isn't reliably
+// available across browsers the way xhr.upload.onprogress is.
+function uploadWithProgress(url, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        body = { detail: xhr.responseText || `HTTP ${xhr.status}` };
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body);
+      } else {
+        reject(new Error(body.detail || `HTTP ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Network error — is the backend running at this origin?"));
+    xhr.send(formData);
+  });
+}
+
+function setupDropzone(zoneId, inputId, onFile) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+
+  zone.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    if (input.files[0]) onFile(input.files[0]);
+  });
+
+  ["dragenter", "dragover"].forEach((evt) =>
+    zone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      zone.classList.add("dragover");
+    })
+  );
+  ["dragleave", "drop"].forEach((evt) =>
+    zone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      zone.classList.remove("dragover");
+    })
+  );
+  zone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) onFile(file);
+  });
+}
+
+function renderStatus(container, { uploading, progress, processing, error }) {
+  let html = "";
+  if (uploading) {
+    html += `<div class="progress-bar"><div style="width:${Math.round(progress * 100)}%"></div></div>`;
+    html += `<div class="status-line"><div class="spinner"></div> Uploading… ${Math.round(progress * 100)}%</div>`;
+  } else if (processing) {
+    html += `<div class="status-line"><div class="spinner"></div> Analyzing…</div>`;
+  }
+  if (error) {
+    html += `<div class="error-box">⚠ ${error}</div>`;
+  }
+  container.innerHTML = html;
+}
+
+// ---------- Image tab ----------
+setupDropzone("dropzone-image", "input-image", handleImageFile);
+
+async function handleImageFile(file) {
+  const resultEl = document.getElementById("result-image");
+  const objectUrl = URL.createObjectURL(file);
+
+  resultEl.innerHTML = `
+    <div class="card">
+      <div class="preview-wrap">
+        <img id="preview-img" src="${objectUrl}" />
+        <canvas id="preview-canvas"></canvas>
+      </div>
+      <div id="status-area"></div>
+    </div>
+  `;
+  const statusArea = document.getElementById("status-area");
+  renderStatus(statusArea, { uploading: true, progress: 0 });
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const result = await uploadWithProgress("/analyze-image", formData, (p) => {
+      renderStatus(statusArea, { uploading: true, progress: p });
+    });
+    renderStatus(statusArea, { processing: false });
+    renderImageResult(result);
+  } catch (err) {
+    renderStatus(statusArea, { error: err.message });
+  }
+}
+
+function renderImageResult(result) {
+  const resultEl = document.getElementById("result-image");
+  const img = document.getElementById("preview-img");
+
+  const faceRows = result.faces.map((f, i) => `
+    <div class="face-row">
+      <span>Face ${i + 1} (detection confidence ${Math.round(f.detection_confidence * 100)}%)</span>
+      <span>${classBadge(f.classification)} ${confidencePct(f.fake_probability)}</span>
+    </div>
+    ${f.quality_issue ? `<div class="quality-note">${f.quality_issue}</div>` : ""}
+  `).join("");
+
+  const header = `
+    <div class="result-header">
+      <div>${classBadge(result.overall_classification)} <span style="color:var(--muted);font-size:13px;">${confidencePct(result.overall_confidence)}</span></div>
+      <div style="font-size:12px;color:var(--muted)">${result.faces.length} face(s) detected · ${result.processing_time_ms}ms · ${result.model_version || ""}</div>
+    </div>
+  `;
+
+  document.getElementById("status-area").innerHTML = header + (result.faces.length ? `<div class="face-list">${faceRows}</div>` : "");
+
+  const drawBoxes = () => {
+    const canvas = document.getElementById("preview-canvas");
+    if (!canvas || !img.naturalWidth) return;
+    canvas.width = img.clientWidth;
+    canvas.height = img.clientHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 3;
+    ctx.font = "bold 13px 'Segoe UI', sans-serif";
+
+    const colors = { real: "#34a853", fake: "#d93025", uncertain: "#b28000", insufficient_quality: "#5f6368" };
+    result.faces.forEach((f) => {
+      const x = f.bbox.x * canvas.width;
+      const y = f.bbox.y * canvas.height;
+      const w = f.bbox.width * canvas.width;
+      const h = f.bbox.height * canvas.height;
+      const color = colors[f.classification] || "#5f6368";
+      ctx.strokeStyle = color;
+      ctx.strokeRect(x, y, w, h);
+      const label = `${f.classification} ${confidencePct(f.fake_probability)}`;
+      const textW = ctx.measureText(label).width + 10;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, Math.max(0, y - 20), textW, 20);
+      ctx.fillStyle = "white";
+      ctx.fillText(label, x + 5, Math.max(14, y - 5));
+    });
+  };
+
+  if (img.complete && img.naturalWidth) drawBoxes();
+  else img.onload = drawBoxes;
+  window.addEventListener("resize", drawBoxes, { once: false });
+}
+
+// ---------- Video tab ----------
+setupDropzone("dropzone-video", "input-video", handleVideoFile);
+
+async function handleVideoFile(file) {
+  const resultEl = document.getElementById("result-video");
+  const objectUrl = URL.createObjectURL(file);
+
+  resultEl.innerHTML = `
+    <div class="card">
+      <div class="preview-wrap">
+        <video id="preview-video" src="${objectUrl}" controls></video>
+      </div>
+      <div id="status-area-video"></div>
+    </div>
+  `;
+  const statusArea = document.getElementById("status-area-video");
+  renderStatus(statusArea, { uploading: true, progress: 0 });
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const result = await uploadWithProgress("/analyze-video", formData, (p) => {
+      renderStatus(statusArea, { uploading: p < 1, processing: p >= 1, progress: p });
+    });
+    renderVideoResult(result);
+  } catch (err) {
+    renderStatus(statusArea, { error: err.message });
+  }
+}
+
+function renderVideoResult(result) {
+  const statusArea = document.getElementById("status-area-video");
+  const video = document.getElementById("preview-video");
+  const m = result.metadata;
+
+  const header = `
+    <div class="result-header">
+      <div>${classBadge(result.overall_classification)} <span style="color:var(--muted);font-size:13px;">${confidencePct(result.overall_confidence)}</span></div>
+      <div style="font-size:12px;color:var(--muted)">${result.processing_time_ms}ms · ${result.model_version || ""}</div>
+    </div>
+    <div class="meta-grid">
+      <div><b>${m.duration_seconds}s</b>duration</div>
+      <div><b>${m.fps}</b>native fps</div>
+      <div><b>${m.width}×${m.height}</b>resolution</div>
+      <div><b>${m.frames_analyzed}</b>frames sampled</div>
+      <div><b>${result.suspicious_segments.length}</b>suspicious segment(s)</div>
+    </div>
+  `;
+
+  const strip = `
+    <div class="frame-strip">
+      ${result.frames.map((f) => `<div class="${f.classification}" title="${formatTime(f.timestamp)} — ${f.classification}${f.fake_probability !== null ? ' ' + confidencePct(f.fake_probability) : ''}" data-t="${f.timestamp}"></div>`).join("")}
+    </div>
+  `;
+
+  const segments = result.suspicious_segments.length
+    ? `<div class="segment-list">${result.suspicious_segments.map((s) => `
+        <div class="segment-row" data-t="${s.start_timestamp}">
+          <span>⚠ ${formatTime(s.start_timestamp)} – ${formatTime(s.end_timestamp)} (${s.frame_count} frames)</span>
+          <span>peak ${confidencePct(s.peak_fake_probability)}</span>
+        </div>
+      `).join("")}</div>`
+    : `<div class="quality-note" style="color:var(--muted)">No sustained suspicious segments found.</div>`;
+
+  statusArea.innerHTML = header + strip + segments;
+
+  statusArea.querySelectorAll("[data-t]").forEach((el) => {
+    el.addEventListener("click", () => {
+      video.currentTime = parseFloat(el.dataset.t);
+      video.play();
+    });
+  });
+}
+
+</script>
+</body>
+</html>

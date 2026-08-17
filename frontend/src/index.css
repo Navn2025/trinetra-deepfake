@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* "Case file" design system -- shared with Home.tsx's warm paper theme
+   (see that file for the fuller variant with mono/display fonts wired
+   through a scoped stylesheet). These tokens drive the dashboard via
+   Tailwind arbitrary-value classes (var(--color-*)) so re-theming here
+   cascades through every page without per-component edits. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-bg: #efe9db;
+  --color-surface: #f6f1e4;
+  --color-surface-raised: #e7dfc9;
+  --color-border: #d6cbac;
+  --color-text: #23211d;
+  --color-muted: #514c42;
+  --color-accent: #a8382a;
+  --color-accent-hover: #8f2f22;
+
+  --color-real: #3f7d53;
+  --color-real-bg: rgba(63, 125, 83, 0.12);
+  --color-fake: #a8382a;
+  --color-fake-bg: rgba(168, 56, 42, 0.1);
+  --color-uncertain: #9c7a2e;
+  --color-uncertain-bg: rgba(156, 122, 46, 0.12);
+  --color-neutral: #8b8272;
+  --color-neutral-bg: rgba(139, 130, 114, 0.15);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-bg);
+  background-image: radial-gradient(circle at 1px 1px, rgba(35, 33, 29, 0.045) 1px, transparent 0);
+  background-size: 22px 22px;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
