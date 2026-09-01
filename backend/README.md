@@ -48,7 +48,9 @@ shapes). Summary:
 ## Project layout
 
 - `main.py` — FastAPI app and route handlers
-- `predictor.py` — deepfake classifier (DeepfakeBench UCF/SPSL/Xception ensemble)
+- `predictor.py` — deepfake classifier (trinetra_v1_export demo head: frozen CLIP ViT-B/16 + trained linear head)
+- `clip_backbone.py` — frozen CLIP ViT-B/16 (OpenCLIP) image encoder used by predictor.py
+- `models/demo_head.pt` — trained linear head checkpoint, `models/demo_train_report.json` — its training/eval report
 - `preprocessing.py` — face-crop quality gate (blur/sharpness, size)
 - `face_detection.py`, `face_embedding.py` — face detection and identity embeddings (InsightFace)
 - `image_pipeline.py`, `video_pipeline.py` — offline image/video analysis pipelines

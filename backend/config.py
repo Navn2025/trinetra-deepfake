@@ -4,10 +4,9 @@ hardcoded/duplicated across main.py, predictor.py, preprocessing.py, etc.
 live here so they can be tuned or overridden via environment variables in
 one place.
 
-Nothing here changes model behavior by itself -- INPUT_SIZE/MEAN/STD still
-come from preprocessing.py (tied directly to the DeepfakeBench xception.yaml
-that trained the checkpoint) and must not be edited casually; see that
-file's docstring.
+Nothing here changes model behavior by itself -- input resizing/normalization
+is handled internally by predictor.py's CLIPBackbone (clip_backbone.py), not
+here.
 """
 import os
 
@@ -114,11 +113,23 @@ THUMBNAIL_SIZE = _env_int("THUMBNAIL_SIZE", 96)
 # Offline uploaded videos can afford heavier sampling than the live
 # real-time path (which is capped by per-frame latency, not total budget) --
 # but still bounded, since this runs synchronously behind one HTTP request.
-# Target ~1 sampled frame/sec of video, evenly spaced, clamped to
-# [MIN, MAX] regardless of the video's native frame rate or duration.
-VIDEO_SAMPLE_FPS = _env_float("VIDEO_SAMPLE_FPS", 1.0)
+# Target ~4 sampled frames/sec of video (dense enough to localize a short
+# manipulated segment, not just get a clip-level verdict), evenly spaced,
+# clamped to [MIN, MAX] regardless of the video's native frame rate or
+# duration. MAX was raised from 40 to 120 alongside the fps bump so a
+# several-second clip still gets sampled at close to the target rate
+# instead of being clamped back down to ~1fps.
+VIDEO_SAMPLE_FPS = _env_float("VIDEO_SAMPLE_FPS", 4.0)
 MIN_VIDEO_SAMPLE_FRAMES = _env_int("MIN_VIDEO_SAMPLE_FRAMES", 5)
-MAX_VIDEO_SAMPLE_FRAMES = _env_int("MAX_VIDEO_SAMPLE_FRAMES", 40)
+MAX_VIDEO_SAMPLE_FRAMES = _env_int("MAX_VIDEO_SAMPLE_FRAMES", 120)
+
+# Longest side (px) for the full-frame JPEG snapshots embedded in the
+# /analyze-video response (most_suspicious_frame / suspicious_segments[].peak_frame)
+# -- these exist so the dashboard can show the user *which* frame and *where*
+# in it looks fake, not just a timestamp. Kept well below native resolution:
+# these are evidence thumbnails, not the analysis input (predictor.py scores
+# the full-res face crop, this is a separate downsized copy of the whole frame).
+FRAME_SNAPSHOT_MAX_SIDE = _env_int("FRAME_SNAPSHOT_MAX_SIDE", 640)
 
 # A single sampled frame scoring above FAKE_THRESHOLD doesn't make a
 # "suspicious segment" on its own (camera motion/blur can spike one frame) --

@@ -4,6 +4,11 @@ PySide6==6.11.1
 pywin32==312
 requests==2.34.2
 
+# audio_worker.py -- WASAPI loopback capture of the default output device
+# for automatic voice deepfake checks (see that file's docstring for the
+# "system-wide, not per-app" limitation this accepts).
+pyaudiowpatch==0.2.12.8
+
 # face_pipeline.py imports these directly (cv2, numpy) rather than relying
 # on them as transitive deps of mediapipe -- pinned explicitly so a future
 # mediapipe upgrade that drops/changes them can't silently break this file.

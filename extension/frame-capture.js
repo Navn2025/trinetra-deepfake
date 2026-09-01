@@ -34,6 +34,8 @@ function captureFrame(video)
         );
         return null;
     }
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
      ctx.drawImage(
         video,
         0,

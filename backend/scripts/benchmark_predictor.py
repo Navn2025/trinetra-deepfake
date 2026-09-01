@@ -23,7 +23,7 @@ def main():
     image = Image.new("RGB", (256, 256), (110, 130, 150))
 
     load_start = time.perf_counter()
-    predictor._load_model()
+    predictor._load_models()
     load_elapsed = time.perf_counter() - load_start
     print(f"Model load time: {load_elapsed * 1000:.1f} ms  (device={predictor.DEVICE})")
 

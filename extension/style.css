@@ -1,7 +1,80 @@
+/* One badge per detected face, positioned by updateFaceBoxes() in
+   overlay.js (just above that face's own box) -- there can be several per
+   tile now, so this can no longer sit at a single fixed tile corner. */
 .deepfake-detector-badge {
   position: absolute;
+  display: none;
+
+  z-index: 999999;
+
+  padding: 6px 10px;
+
+  border-radius: 6px;
+
+  background: rgba(0, 0, 0, 0.75);
+
+  color: white;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  pointer-events: none;
+
+  backdrop-filter: blur(4px);
+
+  transition: left 0.15s ease, top 0.15s ease;
+}
+
+.deepfake-detector-badge[data-type="fake"] {
+  background: rgba(180, 0, 0, 0.9);
+}
+
+.deepfake-detector-badge[data-type="real"] {
+  background: rgba(0, 120, 60, 0.9);
+}
+
+.deepfake-detector-badge[data-type="uncertain"] {
+  background: rgba(150, 100, 0, 0.9);
+}
+
+/* Box around the detected face, positioned every detection cycle by
+   updateFaceBox() in overlay.js. Starts blue ("detecting") before the
+   first prediction comes back, then recolors to match the badge. */
+.deepfake-detector-facebox {
+  position: absolute;
+  display: none;
+
+  border: 3px solid rgba(66, 133, 244, 0.85);
+  border-radius: 6px;
+
+  z-index: 999998;
+
+  pointer-events: none;
+
+  transition: left 0.15s ease, top 0.15s ease, width 0.15s ease, height 0.15s ease, border-color 0.15s ease;
+}
+
+.deepfake-detector-facebox[data-type="fake"] {
+  border-color: rgba(217, 48, 37, 0.95);
+}
+
+.deepfake-detector-facebox[data-type="real"] {
+  border-color: rgba(52, 168, 83, 0.95);
+}
+
+.deepfake-detector-facebox[data-type="uncertain"] {
+  border-color: rgba(178, 128, 0, 0.95);
+}
+
+/* Whole-tab voice check status -- not tied to a single tile, since tab
+   audio capture can't isolate one speaker. Always-on, no click needed. */
+#deepfake-detector-voice-banner {
+  position: fixed;
   top: 12px;
-  right: 12px;
+  left: 12px;
 
   z-index: 999999;
 
@@ -23,14 +96,14 @@
   backdrop-filter: blur(4px);
 }
 
-.deepfake-detector-badge[data-type="fake"] {
+#deepfake-detector-voice-banner[data-type="fake"] {
   background: rgba(180, 0, 0, 0.9);
 }
 
-.deepfake-detector-badge[data-type="real"] {
+#deepfake-detector-voice-banner[data-type="real"] {
   background: rgba(0, 120, 60, 0.9);
 }
 
-.deepfake-detector-badge[data-type="uncertain"] {
+#deepfake-detector-voice-banner[data-type="uncertain"] {
   background: rgba(150, 100, 0, 0.9);
 }

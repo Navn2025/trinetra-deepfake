@@ -1,17 +1,10 @@
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 
-export function Card({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+export function Card({ className = "", ...rest }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] ${className}`}
-    >
-      {children}
-    </div>
+      {...rest}
+    />
   );
 }

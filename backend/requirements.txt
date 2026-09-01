@@ -12,9 +12,9 @@ numpy==2.4.6
 # explicitly here since these modules import cv2 themselves.
 opencv-python==5.0.0.93
 
-# Deepfake visual classifier (predictor.py) -- DeepfakeBench's UCF detector
-# (Xception-based encoder + custom head, see ucf_head.py), loaded via
-# ../DeepfakeBench/training/networks/xception.py.
+# Deepfake visual classifier (predictor.py) -- trinetra_v1_export's demo
+# head: a frozen CLIP ViT-B/16 (OpenCLIP, LAION-2B) encoder (clip_backbone.py)
+# plus a trained linear head (backend/models/demo_head.pt).
 # torch must be installed for your CUDA version (or CPU-only) using the
 # matching index, e.g. for CUDA 13.0:
 #   pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
@@ -22,6 +22,10 @@ opencv-python==5.0.0.93
 # will pull whatever default wheel PyPI serves (often CPU-only) -- install
 # torch separately first if you need GPU inference.
 torch==2.13.0
+torchvision
+# open_clip pulls the CLIP ViT-B/16 checkpoint from HuggingFace on first run
+# (~600MB, cached locally after) -- see clip_backbone.py.
+open_clip_torch
 
 # Face identity embeddings (face_embedding.py) -- InsightFace buffalo_l via
 # onnxruntime, runs on CPU by design (see that file's docstring).

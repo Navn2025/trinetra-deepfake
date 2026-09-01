@@ -27,6 +27,13 @@ models/*.pth
 models/*.pt
 models/*.onnx
 models/*.ckpt
+voice-integrity/models/
+# speechbrain's from_hparams(savedir=...) local model cache (ECAPA, MetricGAN+)
+voice-integrity/pretrained_models/
+voice-integrity/src/pretrained_models/
+
+# Voice-integrity runtime data (enrolled/incoming/reference audio, cache — not source)
+voice-integrity/data/
 
 # Environment / secrets
 .env

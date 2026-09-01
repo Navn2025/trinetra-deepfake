@@ -44,10 +44,13 @@ export function formatTimestamp(seconds: number): string {
 
 /** SQLite's datetime('now') stores UTC as "YYYY-MM-DD HH:MM:SS" with no
  * timezone marker -- Date() would otherwise parse that as local time. */
-export function formatDate(sqliteUtc: string): string {
+export function parseSqliteUtc(sqliteUtc: string): Date {
   const iso = sqliteUtc.includes("T") ? sqliteUtc : sqliteUtc.replace(" ", "T");
-  const date = new Date(iso.endsWith("Z") ? iso : `${iso}Z`);
-  return date.toLocaleString(undefined, {
+  return new Date(iso.endsWith("Z") ? iso : `${iso}Z`);
+}
+
+export function formatDate(sqliteUtc: string): string {
+  return parseSqliteUtc(sqliteUtc).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "numeric",

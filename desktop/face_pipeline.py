@@ -22,6 +22,7 @@ MODEL_PATH = Path(__file__).resolve().parent / "models" / "blaze_face_short_rang
 
 FACE_CROP_SIZE = 256  # matches DeepfakeBench's face-crop resolution
 FACE_MARGIN_RATIO = 0.3  # padding added around the detected face box
+CAPTURE_IS_MIRRORED = True
 
 
 def create_face_detector() -> vision.FaceDetector:
@@ -50,7 +51,8 @@ def detect_faces(detector: vision.FaceDetector, frame_bgra: np.ndarray) -> list[
         the backend
     """
     height, width = frame_bgra.shape[:2]
-    rgb = cv2.cvtColor(frame_bgra, cv2.COLOR_BGRA2RGB)
+    analysis_frame = cv2.flip(frame_bgra, 1) if CAPTURE_IS_MIRRORED else frame_bgra
+    rgb = cv2.cvtColor(analysis_frame, cv2.COLOR_BGRA2RGB)
     mp_image = Image(image_format=ImageFormat.SRGB, data=rgb)
 
     result = detector.detect(mp_image)
@@ -73,7 +75,7 @@ def detect_faces(detector: vision.FaceDetector, frame_bgra: np.ndarray) -> list[
         if s <= 0:
             continue
 
-        bgr_frame = cv2.cvtColor(frame_bgra, cv2.COLOR_BGRA2BGR)
+        bgr_frame = cv2.cvtColor(analysis_frame, cv2.COLOR_BGRA2BGR)
         cropped = bgr_frame[sy : sy + s, sx : sx + s]
         crop = cv2.resize(cropped, (FACE_CROP_SIZE, FACE_CROP_SIZE))
 

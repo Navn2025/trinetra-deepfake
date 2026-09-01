@@ -1,32 +1,16 @@
 """
-Face-image preprocessing shared by predictor.py.
+Face-crop quality gate shared by main.py/image_pipeline.py/video_pipeline.py.
 
-The extension already crops a square, margin-padded face region before
-sending it here (extension/frame-capture.js: cropFaceFromCanvas), so this
-only needs to match whatever input shape/normalization the model expects.
-
-Values below (resolution, mean, std) come directly from
-DeepfakeBench/training/config/detector/ucf.yaml -- change them if you
-swap in a different DeepfakeBench detector, since each config can differ.
-(Same values as xception.yaml, which the model here previously used --
-DeepfakeBench's FF++-trained detectors share this normalization.)
+Model-input resizing/normalization is no longer done here -- predictor.py's
+CLIPBackbone (clip_backbone.py) takes raw uint8 RGB crops and handles its own
+resize + normalization internally, reading the normalization constants from
+the checkpoint's own open_clip transform rather than a hardcoded config.
 """
 import cv2
 import numpy as np
 from PIL import Image
 
 from config import MIN_FACE_CROP_PX, MIN_SHARPNESS_VARIANCE
-
-INPUT_SIZE = 256  # ucf.yaml: resolution
-MEAN = np.array([0.5, 0.5, 0.5], dtype=np.float32)  # ucf.yaml: mean
-STD = np.array([0.5, 0.5, 0.5], dtype=np.float32)  # ucf.yaml: std
-
-
-def preprocess_face(image: Image.Image) -> np.ndarray:
-    image = image.resize((INPUT_SIZE, INPUT_SIZE))
-    array = np.asarray(image, dtype=np.float32) / 255.0
-    array = (array - MEAN) / STD
-    return array
 
 
 def sharpness_variance(image: Image.Image) -> float:

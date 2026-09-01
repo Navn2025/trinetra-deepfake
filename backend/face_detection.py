@@ -41,7 +41,15 @@ def _get_detector_app() -> FaceAnalysis:
             logger.info("loading InsightFace detection-only model (buffalo_l/det_10g)")
             start = time.monotonic()
             app = FaceAnalysis(name="buffalo_l", allowed_modules=["detection"])
-            app.prepare(ctx_id=-1)  # -1 = CPU
+            # det_size=(320, 320): the model resizes its input to this
+            # regardless of source resolution, so this is the real per-frame
+            # cost driver, not the source frame size. Default is (640, 640);
+            # halving it roughly halves CPU detection time (no
+            # onnxruntime-gpu build is installed here -- see requirements.txt
+            # -- so this runs on CPU) with negligible accuracy loss for a
+            # single reasonably-framed face, which is all video_pipeline.py
+            # and the dashboard photo path ever need.
+            app.prepare(ctx_id=-1, det_size=(320, 320))  # -1 = CPU
             _detector_app = app
             logger.info("face detector ready in %.1fs", time.monotonic() - start)
         return _detector_app

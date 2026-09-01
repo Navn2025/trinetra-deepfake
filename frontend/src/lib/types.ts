@@ -36,6 +36,18 @@ export interface VideoFrameResult {
   timestamp: number;
   fake_probability: number | null;
   classification: Classification;
+  bbox: NormalizedBbox | null;
+}
+
+/** A single sampled frame kept as evidence: a downsized JPEG of the whole
+ * frame (not just the face crop) plus the detected face's bbox, so the UI
+ * can show *which* frame and *where in it* the model reacted to. */
+export interface FrameEvidence {
+  timestamp: number;
+  fake_probability: number | null;
+  bbox: NormalizedBbox | null;
+  /** base64-encoded JPEG, no data: prefix. */
+  thumbnail: string;
 }
 
 export interface SuspiciousSegment {
@@ -43,6 +55,7 @@ export interface SuspiciousSegment {
   end_timestamp: number;
   peak_fake_probability: number;
   frame_count: number;
+  peak_frame: FrameEvidence | null;
 }
 
 export interface VideoMetadata {
@@ -58,6 +71,7 @@ export interface AnalyzeVideoResult {
   metadata: VideoMetadata;
   frames: VideoFrameResult[];
   suspicious_segments: SuspiciousSegment[];
+  most_suspicious_frame: FrameEvidence | null;
   overall_classification: Classification;
   overall_confidence: number | null;
   processing_time_ms: number;

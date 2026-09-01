@@ -8,9 +8,17 @@ Graphics Capture API instead of reading a <video> element, everything
 else -- face detection, cropping, calling the backend, showing a
 REAL/FAKE/UNCERTAIN badge -- works the same way.
 
-Requires the same backend server as the extension running at
-http://127.0.0.1:8000 (see ../backend/README or just run:
+Both face and voice checking start automatically as soon as monitoring
+begins, no click needed -- faces are detected, tracked, and scored every
+cycle (see tracker.py), and voice checking runs against system-wide audio
+in parallel (see audio_worker.py).
+
+Requires the face-detection backend at http://127.0.0.1:8000 (see
+../backend/README or just run:
   cd ../backend && .\\venv\\Scripts\\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
+) and the voice service at http://127.0.0.1:8001 (see
+../voice-integrity/src/server.py or run:
+  cd ../voice-integrity && .\\venv\\Scripts\\python.exe -m uvicorn src.server:app --port 8001
 ).
 
 Usage:
@@ -26,6 +34,7 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QApplication
 
 from api_client import predict_face
+from audio_worker import VoiceWorker
 from capture_worker import LatestFrameHolder, start_capture
 from face_pipeline import create_face_detector, detect_faces
 from overlay import OverlayWindow
@@ -89,7 +98,10 @@ class DetectionWorker(QThread):
                 self._check_rect_mismatch(bgra.shape[1], bgra.shape[0])
                 faces = detect_faces(detector, bgra)
 
-                for face in faces:
+                tracked = tracker.assign_track_ids(faces)
+
+                results = []
+                for face in tracked:
                     prediction = predict_face(face["crop"], platform=self._platform)
                     # None here means "no numeric signal this cycle" -- either
                     # the API call itself failed, or it succeeded but the
@@ -98,11 +110,13 @@ class DetectionWorker(QThread):
                     # tracker.py skips None rather than folding it into the
                     # smoothed average, so one bad frame doesn't corrupt or
                     # crash the rolling history.
-                    face["fake_probability"] = prediction["fake_probability"] if prediction else None
-                    del face["crop"]  # no longer needed, don't hold onto it
+                    fake_probability = prediction["fake_probability"] if prediction else None
 
-                smoothed = tracker.update(faces)
-                self.faces_updated.emit(smoothed)
+                    del face["crop"]  # no longer needed, don't hold onto it
+                    smoothed = tracker.record_prediction(face["track_id"], fake_probability)
+                    results.append({**face, "smoothed_fake_probability": smoothed})
+
+                self.faces_updated.emit(results)
 
             time.sleep(DETECTION_INTERVAL_SECONDS)
 
@@ -125,14 +139,21 @@ def main() -> None:
     worker.faces_updated.connect(overlay.set_faces)
     worker.start()
 
+    voice_worker = VoiceWorker()
+    voice_worker.voice_result.connect(overlay.set_voice_status)
+    voice_worker.start()
+
     def cleanup():
         worker.stop()
         worker.wait(2000)
+        voice_worker.stop()
+        voice_worker.wait(15000)  # may be mid-capture (up to ~10s) or mid-sleep when stop() is called
         capture_control.stop()
 
     app.aboutToQuit.connect(cleanup)
 
-    print("\nMonitoring started. Close this window or Ctrl+C to stop.")
+    print("\nMonitoring started -- face and voice checking are both running automatically.")
+    print("Close this window or Ctrl+C to stop.")
     sys.exit(app.exec())
 
 

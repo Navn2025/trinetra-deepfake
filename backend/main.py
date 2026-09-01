@@ -131,10 +131,12 @@ app.add_middleware(
         "https://teams.live.com",
         "https://discord.com",
         "https://web.whatsapp.com",
-        "http://localhost:5173",  # frontend/ Vite dev server
-        "http://127.0.0.1:5173",
     ],
-    allow_origin_regex=r"https://.*\.zoom\.us",  # Zoom web client uses per-account subdomains
+    # Zoom web client uses per-account subdomains; the frontend/ Vite dev
+    # server's port shifts (5173, 5174, ...) whenever something else is
+    # already bound to the one before it -- matching any localhost/127.0.0.1
+    # port here avoids re-editing this list every time that happens.
+    allow_origin_regex=r"https://.*\.zoom\.us|http://(localhost|127\.0\.0\.1):\d+",
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
@@ -375,14 +377,23 @@ async def analyze_video_route(request: Request, file: UploadFile = File(...)):
     Response:
     {
       "metadata": {"duration_seconds","fps","width","height","total_frames","frames_analyzed"},
-      "frames": [{"timestamp","fake_probability","classification"}, ...],
-      "suspicious_segments": [{"start_timestamp","end_timestamp","peak_fake_probability","frame_count"}, ...],
+      "frames": [{"timestamp","fake_probability","classification","bbox"}, ...],
+      "suspicious_segments": [{"start_timestamp","end_timestamp","peak_fake_probability",
+                                "frame_count","peak_frame"}, ...],
+      "most_suspicious_frame": {"timestamp","fake_probability","bbox","thumbnail"} | null,
       "overall_classification": "real"|"fake"|"uncertain"|"insufficient_quality"|"no_face_detected",
       "overall_confidence": float | null,
       "processing_time_ms": float,
       "model_version": str,
       "request_id": str
     }
+    "bbox" is {x,y,width,height} normalized 0->1 against that frame, or null
+    if no face was detected on it. "most_suspicious_frame" and each segment's
+    "peak_frame" are evidence snapshots (see video_pipeline.py's
+    _make_frame_evidence) -- a downsized JPEG (base64) of the *whole* sampled
+    frame plus the detected face's bbox, for the single highest-scoring
+    frame overall / within that segment, so the caller can show which frame
+    and where in it the model reacted to. null if no scored frame exists.
     """
     start = time.monotonic()
     if file.content_type not in ALLOWED_VIDEO_CONTENT_TYPES:

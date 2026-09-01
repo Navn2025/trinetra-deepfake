@@ -19,6 +19,13 @@ const PROCESS_INTERVAL = 3000;
 
 let processing = false;
 
+// Fires once per page load, the first time any video tile is seen -- used
+// as the "meeting started" signal for automatic voice capture (see
+// background.js/offscreen.js). Video tiles are a reasonable proxy across
+// every supported platform (Meet/Zoom/Teams/Discord/WhatsApp) without
+// needing per-platform "call connected" selectors.
+let meetingStartSignaled = false;
+
 
 async function processVideo(video, index) {
 
@@ -62,65 +69,58 @@ async function processVideo(video, index) {
             `[Pipeline] No face found in video ${index}`
         );
 
+        updateFaceBoxes(video, []);
+
         return;
     }
 
+    // Position every face's box this cycle, independent of whether
+    // prediction below succeeds -- updateOverlay() only recolors them once
+    // verdicts come back.
+    updateFaceBoxes(video, faces);
+
 
     // --------------------------------
-    // 3. Crop to the largest detected face
+    // 3. Crop + predict every detected face, concurrently
     // --------------------------------
 
-    const faceCanvas =
-        cropFaceFromCanvas(frameCanvas, faces[0]);
+    const predictions =
+        await Promise.all(
+            faces.map(async (face, faceIndex) => {
 
-    if (!faceCanvas) {
+                const faceCanvas =
+                    cropFaceFromCanvas(frameCanvas, face);
 
-        console.log(
-            `[Pipeline] Could not crop face for video ${index}`
+                if (!faceCanvas) {
+
+                    console.log(
+                        `[Pipeline] Could not crop face ${faceIndex} for video ${index}`
+                    );
+
+                    return null;
+                }
+
+                const faceBlob =
+                    await canvasToBlob(faceCanvas);
+
+                return await predictFace(faceBlob);
+            })
         );
 
-        return;
-    }
-
-    const faceBlob =
-        await canvasToBlob(faceCanvas);
-
     console.log(
-        `[Pipeline] Face crop captured: ${faceBlob.size} bytes`
+        `[Pipeline] Predictions for video ${index}:`,
+        predictions
     );
 
 
     // --------------------------------
-    // 4. Predict
-    // --------------------------------
-
-    const prediction =
-        await predictFace(faceBlob);
-
-
-    if (!prediction) {
-
-        console.log(
-            `[Pipeline] No prediction for video ${index}`
-        );
-
-        return;
-    }
-
-
-    console.log(
-        `[Pipeline] Prediction for video ${index}:`,
-        prediction
-    );
-
-
-    // --------------------------------
-    // 5. Update UI
+    // 4. Update UI
     // --------------------------------
 
     updateOverlay(
         video,
-        prediction
+        faces,
+        predictions
     );
 }
 
@@ -141,6 +141,14 @@ async function processAllVideos() {
         console.log(
             `[Pipeline] Found ${videos.length} active videos`
         );
+
+        if (!meetingStartSignaled && videos.length > 0) {
+            meetingStartSignaled = true;
+            // Fire-and-forget -- background.js starts tab audio capture;
+            // any failure (no mic/tab-capture permission granted yet, etc.)
+            // shows up in its own console, not here.
+            chrome.runtime.sendMessage({ type: "MEETING_STARTED" }).catch(() => {});
+        }
 
         // Process every tile concurrently instead of one at a time --
         // each tile's own latency (detect -> crop -> predict) no longer
@@ -178,3 +186,14 @@ setInterval(
     processAllVideos,
     PROCESS_INTERVAL
 );
+
+
+// Voice check results relayed from background.js -- they originate in
+// offscreen.js's tab-audio capture loop, started once via MEETING_STARTED
+// above. Whole-tab audio, so this updates one page-level banner rather than
+// a per-tile badge (see overlay.js's updateVoiceBanner).
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === "VOICE_CHECK_RESULT") {
+        updateVoiceBanner(message.result, message.error);
+    }
+});

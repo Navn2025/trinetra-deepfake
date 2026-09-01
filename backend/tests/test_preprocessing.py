@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image
 
 from config import MIN_SHARPNESS_VARIANCE
-from preprocessing import INPUT_SIZE, MEAN, STD, sharpness_variance, assess_face_crop_quality, preprocess_face
+from preprocessing import sharpness_variance, assess_face_crop_quality
 
 
 def _solid_image(size, color=(128, 64, 200)):
@@ -17,34 +17,6 @@ def _textured_image(size, seed=0):
     rng = np.random.default_rng(seed)
     array = rng.integers(0, 255, (size[1], size[0], 3), dtype=np.uint8)
     return Image.fromarray(array)
-
-
-def test_preprocess_face_output_shape():
-    image = _solid_image((300, 300))
-    array = preprocess_face(image)
-    assert array.shape == (INPUT_SIZE, INPUT_SIZE, 3)
-    assert array.dtype == np.float32
-
-
-def test_preprocess_face_resizes_non_square_input():
-    image = _solid_image((512, 128))
-    array = preprocess_face(image)
-    assert array.shape == (INPUT_SIZE, INPUT_SIZE, 3)
-
-
-def test_preprocess_face_normalization_matches_xception_yaml():
-    # mean=[0.5,0.5,0.5], std=[0.5,0.5,0.5] maps pixel range [0,255] -> [-1, 1]
-    black = preprocess_face(_solid_image((64, 64), color=(0, 0, 0)))
-    white = preprocess_face(_solid_image((64, 64), color=(255, 255, 255)))
-    assert np.allclose(black, -1.0, atol=1e-5)
-    assert np.allclose(white, 1.0, atol=1e-2)  # 255/255=1.0 exactly; rounding-safe
-
-
-def test_preprocess_face_matches_manual_formula():
-    image = _solid_image((64, 64), color=(10, 200, 90))
-    array = preprocess_face(image)
-    expected_pixel = (np.array([10, 200, 90], dtype=np.float32) / 255.0 - MEAN) / STD
-    assert np.allclose(array[0, 0], expected_pixel, atol=1e-5)
 
 
 def test_assess_face_crop_quality_rejects_tiny_crop():

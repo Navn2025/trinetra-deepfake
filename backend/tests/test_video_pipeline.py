@@ -23,9 +23,9 @@ def test_sample_frame_indices_respects_min_and_max():
     assert indices == sorted(set(indices))
     assert len(indices) <= 3
 
-    # Long video: capped at MAX_VIDEO_SAMPLE_FRAMES, not one sample per second
+    # Long video: capped at MAX_VIDEO_SAMPLE_FRAMES, not ~4 samples per second
     indices = _sample_frame_indices(total_frames=100000, duration_seconds=3600)
-    assert len(indices) <= 40
+    assert len(indices) <= 120
 
 
 def test_sample_frame_indices_are_evenly_spread_and_in_bounds():
